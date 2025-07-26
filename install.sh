@@ -1,32 +1,61 @@
 #!/bin/sh
 
-# install.sh - Script to install Kali Linux with an advanced ANONYMOUS-themed CLI interface in text mode on iOS via CLI
+# install.sh - Script to install Kali Linux with an advanced ANONYMOUS-themed CLI interface in text mode on iOS via iSH
 # Includes 20 CLI-based tools with sub-menus, recommended commands, wordlist menu, and auto dependency installation
-# Auto-creates required directories and handles all dependency downloads
+# Wordlist menu for Aircrack-ng, Dirb, Hashcat, Hydra, John; fetches from https://github.com/kkrypt0nn/wordlists
+# Auto-creates missing directories to optimize installation
 # Root filesystem named: kali-ios_2.0_anon.tar.gz
-# Wordlist menu fetches from https://github.com/kkrypt0nn/wordlists/tree/main/wordlists/passwords
+# Installation directory: /ish/kali-ios_2.0_anon
 # Prerequisites: iSH app installed, internet connection, sufficient storage (~7GB)
 
 # Exit on error
 set -e
 
 # Variables
+KALI_ROOTFS_URL="https://http.kali.org/kali-images/kali-2025.2/kali-linux-2025.2-installer-amd64.iso"
 KALI_ROOTFS_FILE="kali-ios_2.0_anon.tar.gz"
-INSTALL_DIR="/mnt/kali"
-CONFIG_DIR="/mnt/kali/configs"
-WORDLIST_DIR="/mnt/kali/wordlists"
+INSTALL_DIR="/ish/kali-ios_2.0_anon"
+CONFIG_DIR="/ish/kali-ios_2.0_anon/configs"
+WORDLIST_DIR="/ish/kali-ios_2.0_anon/wordlists"
 ISH_APP="/ish"
-KALI_SCRIPT_URL="https://github.com/SannyGrooves/KALI_IOS_ANON/blob/c75970717ba9a338f66d84e2dac70b979a82c09c/install.sh"
-KALI_SCRIPT="install.sh"
+KALI_SCRIPT_URL="https://raw.githubusercontent.com/SannyGrooves/KALI_IOS_ANON/0d0726778ef2708bdaf2d89372dd4324048447f8/install.sh"
+KALI_SCRIPT="kali.sh"
 WORDLIST_GITHUB_URL="https://github.com/kkrypt0nn/wordlists/tree/main/wordlists/passwords"
 WORDLIST_RAW_BASE="https://raw.githubusercontent.com/kkrypt0nn/wordlists/main/wordlists/passwords"
 TOOLS="metasploit-framework nmap aircrack-ng sqlmap hydra john wireshark nikto kismet hashcat dirb w3af netcat-traditional hping3 recon-ng set maltego snmpcheck xsspy burpsuite"
 
+# Function to check and create directories with error handling
+check_and_create_dir() {
+    local dir="$1"
+    local parent_dir=$(dirname "$dir")
+    
+    # Check if parent directory exists and is writable
+    if [ ! -d "$parent_dir" ]; then
+        echo "Error: Parent directory $parent_dir does not exist."
+        echo "Attempting to create $parent_dir..."
+        mkdir -p "$parent_dir" || { echo "Error: Failed to create $parent_dir. Check permissions."; exit 1; }
+        chmod 755 "$parent_dir" || { echo "Error: Failed to set permissions on $parent_dir."; exit 1; }
+    elif [ ! -w "$parent_dir" ]; then
+        echo "Error: Parent directory $parent_dir is not writable."
+        exit 1
+    fi
+    
+    # Check if target directory exists, create if missing
+    if [ ! -d "$dir" ]; then
+        echo "Creating directory $dir..."
+        mkdir -p "$dir" || { echo "Error: Failed to create $dir. Check permissions."; exit 1; }
+        chmod 755 "$dir" || { echo "Error: Failed to set permissions on $dir."; exit 1; }
+    elif [ ! -w "$dir" ]; then
+        echo "Error: Directory $dir is not writable."
+        exit 1
+    fi
+}
+
 # Function to retry commands
 retry_cmd() {
     local cmd="$1"
-    local max_attempts=3"
-    local attempt="1"
+    local max_attempts=3
+    local attempt=1
     while [ $attempt -le $max_attempts ]; do
         if eval "$cmd"; then
             return 0
@@ -42,21 +71,24 @@ retry_cmd() {
 
 # Step 1: Check if running in iSH
 if [ ! -d "$ISH_APP" ]; then
-    echo "Error: This script must be run within the iSH shell."
+    echo "Error: This script must be run within the iSH app."
     exit 1
 fi
 
 # Step 2: Check storage availability (rough estimate: 7GB needed)
 echo "Checking available storage..."
-if ! df -h / | grep -q "Avail.*[7-9]G"; then
+check_and_create_dir "/ish"
+if ! df -h /ish | grep -q "Avail.*[7-9]G"; then
     echo "Warning: Less than 7GB of storage may cause issues. Free up space and retry."
     exit 1
 fi
 
 # Step 3: Create required directories
-echo "Creating directories: $INSTALL_DIR, $CONFIG_DIR, $WORDLIST_DIR..."
-mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$WORDLIST_DIR"
-chmod 755 "$INSTALL_DIR" "$CONFIG_DIR" "$WORDLIST_DIR"
+echo "Creating/checking directories: $INSTALL_DIR, $CONFIG_DIR, $WORDLIST_DIR, /tmp..."
+check_and_create_dir "$INSTALL_DIR"
+check_and_create_dir "$CONFIG_DIR"
+check_and_create_dir "$WORDLIST_DIR"
+check_and_create_dir "/tmp"
 cd "$INSTALL_DIR" || { echo "Failed to change to $INSTALL_DIR"; exit 1; }
 
 # Step 4: Install base dependencies for iSH
@@ -80,7 +112,7 @@ chmod +x "$KALI_SCRIPT"
 echo "Installing Kali dependencies and tools..."
 retry_cmd "sudo apt update"
 # Install common dependencies
-retry_cmd "sudo apt install -y --fix-missing -y libc6 libssl-dev libpq-dev python3 python3-dev ruby-dev build-essential"
+retry_cmd "sudo apt install -y --fix-missing libc6 libssl-dev libpq-dev python3 python3-dev ruby-dev build-essential"
 # Install Python dependencies
 retry_cmd "sudo pip3 install --upgrade pip"
 retry_cmd "sudo pip3 install beautifulsoup4 requests shodan pygeoip mechanize"
@@ -101,13 +133,12 @@ display_menu() {
     clear
     echo "============================================================="
     echo "       _          _ _       ___ _   _ ______   ____  "
-    echo "      | |__   ___| | | ___ / __| | | |  _ \ \ \ \ / /  \ "
-    echo "      | '_ \ / __| | |/ _ \| | | |_| | | | \ \ V /|   |"
-    echo "      | | | | (__| | |  __/| | |  _  | |_| || || |   |"
-    echo "      | |_| |_| \___|_|_|\___|___|_| |_|_____|_| |___|"
-    echo "          (Anonymous Community Tools)                          "
+    echo "      | |__   ___| | | ___ / __| | | |  _ \\ \\ / /  \\ "
+    echo "      | '_ \\ / __| | |/ _ \\| | | |_| | | | \\ V /|   |"
+    echo "      | | | | (__| | |  __/| | |  _  | |_| || | |   |"
+    echo "      | |_| |_| \\___|_|_|\\___|___|_| |_|____/|_| |___|"
+    echo "          (Community Tools)                          "
     echo "============================================================="
-    echo
     echo "Welcome to Kali Linux on iSH! Select a tool by number (1-20)."
     echo "Type '?' for help, including usage examples and iSH notes."
     echo "Type '0' to exit to the shell."
@@ -150,7 +181,7 @@ display_help() {
     echo "============================================================="
     echo "Usage: Enter a number (1-20) to select a tool, '0' to exit, or '?' to redisplay this help."
     echo "Each tool has a sub-menu with recommended commands for real-world use."
-    echo "For Hashcat, Hydra, and John, select 'w' to choose a wordlist from GitHub."
+    echo "For Aircrack-ng, Dirb, Hashcat, Hydra, and John, select 'w' to choose a wordlist from GitHub."
     echo "iSH Notes:"
     echo "- iSH runs in text mode only; GUI tools are not supported."
     echo "- Wireless tools (Aircrack-ng, Kismet) have limited functionality due to iOS network restrictions."
@@ -163,16 +194,16 @@ display_help() {
     echo "3. Netcat: 'nc -l 12345' (listen on port 12345)"
     echo "4. Hping3: 'hping3 -S 192.168.1.1' (SYN flood test)"
     echo "5. Snmpcheck: 'snmpcheck -t 192.168.1.1' (enumerate SNMP)"
-    echo "6. Aircrack-ng: 'aircrack-ng capture.cap' (crack WiFi, limited)"
+    echo "6. Aircrack-ng: 'aircrack-ng -w wordlist.txt capture.cap' (crack WiFi, limited)"
     echo "7. Kismet: 'kismet -c wlan0' (wireless sniffer, limited)"
     echo "8. Sqlmap: 'sqlmap -u http://target.com --dbs' (enumerate databases)"
     echo "9. Burp Suite: Requires manual proxy setup; run 'burpsuite' for CLI"
     echo "10. Nikto: 'nikto -h http://target.com' (scan web server)"
-    echo "11. Dirb: 'dirb http://target.com' (scan for directories)"
+    echo "11. Dirb: 'dirb http://target.com wordlist.txt' (scan for directories)"
     echo "12. W3af: 'w3af_console' then 'help' for commands"
     echo "13. XSSPY: 'xsspy http://target.com' (scan for XSS)"
     echo "14. Hydra: 'hydra -l user -P wordlist.txt ssh://192.168.1.1' (brute-force SSH)"
-    echo "15. John: 'john hash.txt' (crack password hashes)"
+    echo "15. John: 'john --wordlist=wordlist.txt hash.txt' (crack password hashes)"
     echo "16. Hashcat: 'hashcat -m 0 hash.txt wordlist.txt' (crack MD5 hashes)"
     echo "17. Metasploit: 'msfconsole' then 'help' for commands"
     echo "18. SET: 'setoolkit' then follow prompts for social engineering"
@@ -240,8 +271,29 @@ download_wordlist() {
     fi
     echo "$wordlist downloaded successfully to $wordlist_path."
     echo ""
-    echo "=== Recommended Cracking Methods for $tool_name with $wordlist ==="
+    echo "=== Recommended Commands for $tool_name with $wordlist ==="
     case "$tool_name" in
+        "Aircrack-ng")
+            echo "echo '$wordlist' | grep -q 'probable_wpa.txt' && echo 'Note: probable_wpa.txt is tailored for WPA/WPA2 cracking, ideal for Aircrack-ng.'"
+            echo "1. aircrack-ng -w $wordlist_path capture.cap # Crack WEP/WPA key from capture file"
+            echo "2. aircrack-ng -w $wordlist_path -b 00:11:22:33:44:55 capture.cap # Crack with specific BSSID"
+            echo "3. aircrack-ng -w $wordlist_path -e ESSID capture.cap # Crack for specific ESSID"
+            echo "Tips:"
+            echo "- Requires a capture file (e.g., capture.cap from airodump-ng, not possible in iSH)."
+            echo "- Use authorized systems only."
+            echo "- Check 'man aircrack-ng' for more options."
+            echo "- iSH lacks WiFi hardware access, limiting functionality."
+            ;;
+        "Dirb")
+            echo "echo '$wordlist' | grep -q 'common.txt' && echo 'Note: common.txt is optimized for directory brute-forcing with Dirb.'"
+            echo "1. dirb http://target.com $wordlist_path # Scan for directories"
+            echo "2. dirb http://target.com $wordlist_path -X .php # Scan for .php files"
+            echo "3. dirb http://target.com $wordlist_path -o output.txt # Save results"
+            echo "Tips:"
+            echo "- Replace 'http://target.com' with the target URL."
+            echo "- Use larger wordlists like 'rockyou.txt' for broader scans."
+            echo "- Check 'dirb -h' for advanced options."
+            ;;
         "Hydra")
             echo "echo '$wordlist' | grep -q 'default_passwords_for_services.txt' && echo 'Note: This wordlist contains default service credentials, ideal for SSH/FTP brute-forcing.'"
             echo "1. hydra -l user -P $wordlist_path ssh://192.168.1.1 # Brute-force SSH with single username"
@@ -346,9 +398,9 @@ display_sub_menu() {
             ;;
         6)
             tool_cmd="aircrack-ng"; tool_name="Aircrack-ng"; desc="WiFi security assessment (limited in iSH)"
-            cmd1="aircrack-ng capture.cap # Crack WEP/WPA from capture file"
-            cmd2="aircrack-ng -w wordlist.txt capture.cap # Use wordlist"
-            cmd3="aircrack-ng -b 00:11:22:33:44:55 capture.cap # Target BSSID"
+            cmd1="aircrack-ng -w wordlist.txt capture.cap # Crack WEP/WPA key"
+            cmd2="aircrack-ng -w wordlist.txt -b 00:11:22:33:44:55 capture.cap # Crack with BSSID"
+            cmd3="aircrack-ng -w wordlist.txt -e ESSID capture.cap # Crack for ESSID"
             ;;
         7)
             tool_cmd="kismet"; tool_name="Kismet"; desc="Wireless network detector (limited in iSH)"
@@ -376,9 +428,9 @@ display_sub_menu() {
             ;;
         11)
             tool_cmd="dirb"; tool_name="Dirb"; desc="Web content scanner for hidden directories"
-            cmd1="dirb http://target.com # Scan for directories"
-            cmd2="dirb http://target.com wordlist.txt # Use custom wordlist"
-            cmd3="dirb http://target.com -X .php # Scan for .php files"
+            cmd1="dirb http://target.com wordlist.txt # Scan for directories"
+            cmd2="dirb http://target.com wordlist.txt -X .php # Scan for .php files"
+            cmd3="dirb http://target.com wordlist.txt -o output.txt # Save results"
             ;;
         12)
             tool_cmd="w3af_console"; tool_name="W3af"; desc="Web application audit framework (console mode)"
@@ -460,7 +512,7 @@ display_sub_menu() {
         echo "Options:"
         echo "1-3. Run recommended command"
         echo "c. Enter custom command"
-        echo "$([[ $choice == 14 || $choice == 15 || $choice == 16 ]] && echo 'w. Select wordlist from GitHub')"
+        echo "$([[ $choice == 6 || $choice == 11 || $choice == 14 || $choice == 15 || $choice == 16 ]] && echo 'w. Select wordlist from GitHub')"
         echo "m. Return to main menu"
         echo "?. View help for $tool_name"
         echo "============================================================="
@@ -516,7 +568,7 @@ display_sub_menu() {
                 fi
                 ;;
             w)
-                if [ "$choice" != "14" ] && [ "$choice" != "15" ] && [ "$choice" != "16" ]; then
+                if [ "$choice" != "6" ] && [ "$choice" != "11" ] && [ "$choice" != "14" ] && [ "$choice" != "15" ] && [ "$choice" != "16" ]; then
                     echo "Invalid option."
                     echo "Press Enter to continue."
                     read
@@ -546,7 +598,7 @@ display_sub_menu() {
                 echo "============================================================="
                 echo "Description: $desc"
                 echo "iSH Notes:"
-                case $tool_cmd in
+                case "$tool_cmd" in
                     aircrack-ng|kismet)
                         echo "- Limited functionality due to iOS network restrictions."
                         echo "- Cannot access WiFi hardware or inject packets."
@@ -567,15 +619,15 @@ display_sub_menu() {
                 echo "- Always test on authorized systems only."
                 echo "- Check 'man $tool_cmd' or '$tool_cmd --help' for more options."
                 echo "- Save output to files (e.g., '$tool_cmd > output.txt') for analysis."
-                if [[ $choice == 14 || $choice == 15 || $choice == 16 ]]; then
-                    echo "- Use 'w' to select a wordlist from GitHub for password cracking."
+                if [[ $choice == 6 || $choice == 11 || $choice == 14 || $choice == 15 || $choice == 16 ]]; then
+                    echo "- Use 'w' to select a wordlist from GitHub for applicable tools."
                 fi
                 echo "============================================================="
                 echo "Press Enter to return to $tool_name sub-menu."
                 read
                 ;;
             *)
-                echo "Invalid option. Choose 1-3, c, w (for Hashcat/Hydra/John), m, or ?."
+                echo "Invalid option. Choose 1-3, c, w (for Aircrack-ng/Dirb/Hashcat/Hydra/John), m, or ?."
                 echo "Press Enter to continue."
                 read
                 ;;
@@ -608,14 +660,18 @@ echo "Booting into Kali Linux environment..."
 
 # Step 11: Install Kali tools
 echo "Installing 20 CLI-compatible Kali Linux tools..."
-apk add sudo || { echo "Failed to install sudo"; exit 1; }
-sudo apt update || { echo "Failed to update package lists"; exit 1; }
-sudo apt install -y metasploit-framework nmap aircrack-ng sqlmap hydra john wireshark nikto kismet hashcat dirb w3af netcat-traditional hping3 recon-ng set maltego snmpcheck xsspy burpsuite || { echo "Failed to install tools"; exit 1; }
+retry_cmd "apk add sudo"
+retry_cmd "sudo apt update"
+for tool in $TOOLS; do
+    echo "Installing $tool..."
+    retry_cmd "sudo apt install -y --fix-missing $tool"
+done
+retry_cmd "sudo apt install -f -y"
 
 # Step 12: Install additional dependencies
 echo "Installing additional dependencies (python3, pip3, etc.)..."
-sudo apt install -y python3 python3-pip || { echo "Failed to install Python dependencies"; exit 1; }
-sudo pip3 install --upgrade pip || { echo "Failed to upgrade pip"; exit 1; }
+retry_cmd "sudo apt install -y python3 python3-pip"
+retry_cmd "sudo pip3 install --upgrade pip"
 
 # Step 13: Optimize iSH display settings
 echo "Optimizing iSH display settings..."
@@ -625,7 +681,7 @@ echo "Please set the iSH Shell font size to 9 in Appearance Settings for best re
 echo "Installation complete!"
 echo "To start Kali Linux and access the ANONYMOUS-themed tools menu, run './kali.sh' from $INSTALL_DIR."
 echo "Type '?' in the menu for help, including usage examples and iSH notes."
-echo "For Hashcat, Hydra, and John, use 'w' in their sub-menus to select a wordlist from GitHub."
-echo "Each tool has a sub-menu with recommended commands and wordlist options."
+echo "For Aircrack-ng, Dirb, Hashcat, Hydra, and John, use 'w' in their sub-menus to select a wordlist from GitHub."
+echo "Each tool has a sub-menu with recommended commands and wordlist options where applicable."
 echo "Note: Some tools (e.g., Aircrack-ng, Kismet, Burp Suite) may have limited functionality in iSH."
-echo "For support, check https://github.com/finlandhl/kali-ios or contact mewl.team@outlook.com."
+echo "For support, check https://github.com/SannyGrooves/KALI_IOS_ANON or contact mewl.team@outlook.com."
