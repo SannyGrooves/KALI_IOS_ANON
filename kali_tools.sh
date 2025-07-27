@@ -5,17 +5,17 @@
 # Wordlist menu for Aircrack-ng, Dirb, Hashcat, Hydra, John; fetches from https://github.com/kkrypt0nn/wordlists
 # Auto-creates missing directories to optimize installation
 # Root filesystem named: kali-ios_2.0_anon.tar.gz
-# Installation directory: /ish/kali-ios_2.0_anon
-# Prerequisites: iSH app installed, internet connection, sufficient storage (~7GB)
+# Installation directory: /root/kali-ios_2.0_anon
+# Prerequisites: iSH app installed, internet connection, sufficient storage (~7GB), Kali chroot/container setup
 
 # Exit on error
 set -e
 
 # Variables
-INSTALL_DIR="/19/run"
-CONFIG_DIR="/19/run/kali-ios_2.0_anon/configs"
-WORDLIST_DIR="/19/run/kali-ios_2.0_anon/wordlists"
-KALI_SCRIPT_URL="https://github.com/SannyGrooves/KALI_IOS_ANON/releases/download/kali/kali_tools.sh"
+INSTALL_DIR="/root/kali-ios_2.0_anon"
+CONFIG_DIR="/root/kali-ios_2.0_anon/configs"
+WORDLIST_DIR="/root/kali-ios_2.0_anon/wordlists"
+KALI_SCRIPT_URL="https://raw.githubusercontent.com/SannyGrooves/KALI_IOS_ANON/main/kali_tools.sh"
 KALI_SCRIPT="kali.sh"
 WORDLIST_GITHUB_URL="https://github.com/kkrypt0nn/wordlists/tree/main/wordlists/passwords"
 WORDLIST_RAW_BASE="https://raw.githubusercontent.com/kkrypt0nn/wordlists/main/wordlists/passwords"
@@ -66,7 +66,6 @@ retry_cmd() {
     exit 1
 }
 
-
 # Step 3: Create required directories
 echo "Creating/checking directories: $INSTALL_DIR, $CONFIG_DIR, $WORDLIST_DIR, /tmp..."
 check_and_create_dir "$INSTALL_DIR"
@@ -77,7 +76,8 @@ cd "$INSTALL_DIR" || { echo "Failed to change to $INSTALL_DIR"; exit 1; }
 
 # Step 4: Install base dependencies for iSH
 echo "Installing base dependencies for iSH..."
-retry_cmd "apk add sudo wget grep sed python3 py3-pip"
+retry_cmd "apt update"
+retry_cmd "apt install -y sudo wget grep sed python3 python3-pip"
 
 # Step 7: Download and prepare kali.sh startup script
 echo "Downloading kali.sh startup script..."
@@ -253,7 +253,7 @@ download_wordlist() {
             echo "echo '$wordlist' | grep -q 'probable_wpa.txt' && echo 'Note: probable_wpa.txt is tailored for WPA/WPA2 cracking, ideal for Aircrack-ng.'"
             echo "1. aircrack-ng -w $wordlist_path capture.cap # Crack WEP/WPA key from capture file"
             echo "2. aircrack-ng -w $wordlist_path -b 00:11:22:33:44:55 capture.cap # Crack with specific BSSID"
-            echo "3. aircrack-ng -w $wordlist_path -e ESSID capture.cap # Crack for specific ESSID"
+            echo "3. aircrack-ng -w $wordlist_path -e ESSID capture.cap # Crack for ESSID"
             echo "Tips:"
             echo "- Requires a capture file (e.g., capture.cap from airodump-ng, not possible in iSH)."
             echo "- Use authorized systems only."
@@ -636,7 +636,6 @@ echo "Booting into Kali Linux environment..."
 
 # Step 11: Install Kali tools
 echo "Installing 20 CLI-compatible Kali Linux tools..."
-retry_cmd "apk add sudo"
 retry_cmd "sudo apt update"
 for tool in $TOOLS; do
     echo "Installing $tool..."
@@ -659,5 +658,5 @@ echo "To start Kali Linux and access the ANONYMOUS-themed tools menu, run './kal
 echo "Type '?' in the menu for help, including usage examples and iSH notes."
 echo "For Aircrack-ng, Dirb, Hashcat, Hydra, and John, use 'w' in their sub-menus to select a wordlist from GitHub."
 echo "Each tool has a sub-menu with recommended commands and wordlist options where applicable."
-echo "Note: Some tools (e.g., Aircrack-ng, Kismet, Burp Suite) may have limited functionality in iSH."
+echo "Note: Some tools (e.g., Aircrack-ng, Kismet, Burp Suite) have limited functionality in iSH."
 echo "For support, check https://github.com/SannyGrooves/KALI_IOS_ANON or contact mewl.team@outlook.com."
