@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# install.sh - Script to install Kali Linux with an advanced ANONYMOUS-themed CLI interface in text mode on iOS via iSH
+# Script to install Kali Linux with an advanced ANONYMOUS-themed CLI interface in text mode on iOS via iSH
 # Includes 20 CLI-based tools with sub-menus, recommended commands, wordlist menu, and auto dependency installation
 # Wordlist menu for Aircrack-ng, Dirb, Hashcat, Hydra, John; fetches from https://github.com/kkrypt0nn/wordlists
 # Auto-creates missing directories to optimize installation
@@ -12,12 +12,11 @@
 set -e
 
 # Variables
-KALI_ROOTFS_FILE="kali-ios_2.0_anon.tar.gz"
 INSTALL_DIR="/ish/kali-ios_2.0_anon"
 CONFIG_DIR="/ish/kali-ios_2.0_anon/configs"
 WORDLIST_DIR="/ish/kali-ios_2.0_anon/wordlists"
 ISH_APP="/ish"
-KALI_SCRIPT_URL="https://raw.githubusercontent.com/SannyGrooves/KALI_IOS_ANON/0d0726778ef2708bdaf2d89372dd4324048447f8/install.sh"
+KALI_SCRIPT_URL=""
 KALI_SCRIPT="kali.sh"
 WORDLIST_GITHUB_URL="https://github.com/kkrypt0nn/wordlists/tree/main/wordlists/passwords"
 WORDLIST_RAW_BASE="https://raw.githubusercontent.com/kkrypt0nn/wordlists/main/wordlists/passwords"
@@ -93,14 +92,6 @@ cd "$INSTALL_DIR" || { echo "Failed to change to $INSTALL_DIR"; exit 1; }
 # Step 4: Install base dependencies for iSH
 echo "Installing base dependencies for iSH..."
 retry_cmd "apk add sudo wget grep sed python3 py3-pip"
-
-# Step 5: Download Kali Linux root filesystem
-echo "Downloading Kali Linux root filesystem..."
-retry_cmd "wget -q '$KALI_ROOTFS_URL' -O '$KALI_ROOTFS_FILE'"
-
-# Step 6: Extract the root filesystem
-echo "Extracting root filesystem from $KALI_ROOTFS_FILE..."
-tar -xzvf "$KALI_ROOTFS_FILE" || { echo "Failed to extract $KALI_ROOTFS_FILE"; exit 1; }
 
 # Step 7: Download and prepare kali.sh startup script
 echo "Downloading kali.sh startup script..."
