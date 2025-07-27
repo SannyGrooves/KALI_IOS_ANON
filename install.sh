@@ -12,7 +12,6 @@
 set -e
 
 # Variables
-KALI_ROOTFS_URL="https://http.kali.org/kali-images/kali-2025.2/kali-linux-2025.2-installer-amd64.iso"
 KALI_ROOTFS_FILE="kali-ios_2.0_anon.tar.gz"
 INSTALL_DIR="/ish/kali-ios_2.0_anon"
 CONFIG_DIR="/ish/kali-ios_2.0_anon/configs"
