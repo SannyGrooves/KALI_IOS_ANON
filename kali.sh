@@ -12,11 +12,10 @@
 set -e
 
 # Variables
-INSTALL_DIR="/ish/kali-ios_2.0_anon"
-CONFIG_DIR="/ish/kali-ios_2.0_anon/configs"
-WORDLIST_DIR="/ish/kali-ios_2.0_anon/wordlists"
-ISH_APP="/ish"
-KALI_SCRIPT_URL="https://github.com/SannyGrooves/KALI_IOS_ANON/blob/a415558c9533abc5befae458ecd5e315bc9558b6/install.sh"
+INSTALL_DIR="/19/boot"
+CONFIG_DIR="/19/boot/kali-ios_2.0_anon/configs"
+WORDLIST_DIR="/19/kali-ios_2.0_anon/wordlists"
+KALI_SCRIPT_URL="https://github.com/SannyGrooves/KALI_IOS_ANON/releases/download/kali/kali.sh"
 KALI_SCRIPT="kali.sh"
 WORDLIST_GITHUB_URL="https://github.com/kkrypt0nn/wordlists/tree/main/wordlists/passwords"
 WORDLIST_RAW_BASE="https://raw.githubusercontent.com/kkrypt0nn/wordlists/main/wordlists/passwords"
@@ -67,11 +66,6 @@ retry_cmd() {
     exit 1
 }
 
-# Step 1: Check if running in iSH
-if [ ! -d "$ISH_APP" ]; then
-    echo "Error: This script must be run within the iSH app."
-    exit 1
-fi
 
 # Step 2: Check storage availability (rough estimate: 7GB needed)
 echo "Checking available storage..."
