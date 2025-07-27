@@ -6,45 +6,82 @@
 # Auto-creates missing directories to optimize installation
 # Root filesystem named: kali-ios_2.0_anon.tar.gz
 # Installation directory: /root/kali-ios_2.0_anon
-# Prerequisites: iSH app installed, internet connection, sufficient storage (~7GB), Kali chroot/container setup
+# Prerequisites: iSH app installed, internet connection, sufficient storage (~7GB), Kali chroot setup
+# Enhanced with helpers for permissions, dependencies, internet, and iSH compatibility
 
 # Exit on error
 set -e
+
+# Enable logging
+exec > >(tee -a /root/kali-ios_2.0_anon/install.log 2>&1)
 
 # Variables
 INSTALL_DIR="/root/kali-ios_2.0_anon"
 CONFIG_DIR="/root/kali-ios_2.0_anon/configs"
 WORDLIST_DIR="/root/kali-ios_2.0_anon/wordlists"
+LOG_FILE="/root/kali-ios_2.0_anon/install.log"
 KALI_SCRIPT_URL="https://raw.githubusercontent.com/SannyGrooves/KALI_IOS_ANON/main/kali_tools.sh"
 KALI_SCRIPT="kali.sh"
 WORDLIST_GITHUB_URL="https://github.com/kkrypt0nn/wordlists/tree/main/wordlists/passwords"
 WORDLIST_RAW_BASE="https://raw.githubusercontent.com/kkrypt0nn/wordlists/main/wordlists/passwords"
 TOOLS="metasploit-framework nmap aircrack-ng sqlmap hydra john wireshark nikto kismet hashcat dirb w3af netcat-traditional hping3 recon-ng set maltego snmpcheck xsspy burpsuite"
 
+# Function to check internet connectivity
+check_internet() {
+    echo "Checking internet connectivity..."
+    if ! ping -c 1 github.com >/dev/null 2>&1; then
+        echo "Error: No internet connection. Please connect to WiFi and try again."
+        exit 1
+    fi
+}
+
+# Function to check and install dependencies
+check_dependencies() {
+    local deps="wget grep sed python3 pip3 sudo"
+    echo "Checking required dependencies: $deps..."
+    for dep in $deps; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            echo "Installing missing dependency: $dep"
+            retry_cmd "apt install -y $dep"
+        fi
+    done
+}
+
+# Function to check and fix permissions
+check_permissions() {
+    local path="$1"
+    local perm="$2"
+    echo "Checking permissions for $path..."
+    if [ -e "$path" ] && [ ! -w "$path" ]; then
+        echo "Fixing permissions for $path..."
+        chmod "$perm" "$path" || { echo "Error: Failed to set permissions on $path."; exit 1; }
+    fi
+}
+
 # Function to check and create directories with error handling
 check_and_create_dir() {
     local dir="$1"
     local parent_dir=$(dirname "$dir")
     
-    # Check if parent directory exists and is writable
+    # Check parent directory
     if [ ! -d "$parent_dir" ]; then
         echo "Error: Parent directory $parent_dir does not exist."
         echo "Attempting to create $parent_dir..."
         mkdir -p "$parent_dir" || { echo "Error: Failed to create $parent_dir. Check permissions."; exit 1; }
-        chmod 755 "$parent_dir" || { echo "Error: Failed to set permissions on $parent_dir."; exit 1; }
+        check_permissions "$parent_dir" "755"
     elif [ ! -w "$parent_dir" ]; then
         echo "Error: Parent directory $parent_dir is not writable."
-        exit 1
+        check_permissions "$parent_dir" "755"
     fi
     
-    # Check if target directory exists, create if missing
+    # Check target directory
     if [ ! -d "$dir" ]; then
         echo "Creating directory $dir..."
         mkdir -p "$dir" || { echo "Error: Failed to create $dir. Check permissions."; exit 1; }
-        chmod 755 "$dir" || { echo "Error: Failed to set permissions on $dir."; exit 1; }
+        check_permissions "$dir" "755"
     elif [ ! -w "$dir" ]; then
         echo "Error: Directory $dir is not writable."
-        exit 1
+        check_permissions "$dir" "755"
     fi
 }
 
@@ -66,6 +103,45 @@ retry_cmd() {
     exit 1
 }
 
+# Function to set up Kali chroot if not detected
+setup_kali_chroot() {
+    echo "Checking for Kali chroot environment..."
+    if ! [ -f /etc/apt/sources.list ] || ! grep -q "kali" /etc/apt/sources.list; then
+        echo "Kali chroot not detected. Setting up Kali chroot..."
+        echo "This requires iSH to be running as root or with sudo privileges."
+        echo "Please run the following commands in iSH (outside chroot) to set up Kali:"
+        echo "1. Update iSH and install dependencies:"
+        echo "   apk update && apk add wget curl tar"
+        echo "2. Download Kali root filesystem:"
+        echo "   wget https://http.kali.org/kali-images/kali-2025.2/kali-linux-2025.2a-rootfs-arm64.tar.xz"
+        echo "3. Extract to /root/kali:"
+        echo "   mkdir -p /root/kali && cd /root/kali"
+        echo "   tar -xJf /path/to/kali-linux-2025.2a-rootfs-arm64.tar.xz"
+        echo "4. Copy DNS resolver:"
+        echo "   cp /etc/resolv.conf /root/kali/etc/resolv.conf"
+        echo "5. Enter chroot:"
+        echo "   chroot /root/kali /bin/bash"
+        echo "6. Configure Kali repositories (inside chroot):"
+        echo "   echo 'deb http://http.kali.org/kali kali-rolling main contrib non-free' > /etc/apt/sources.list"
+        echo "   apt update && apt install -y sudo"
+        echo "After setup, rerun this script inside the Kali chroot."
+        exit 1
+    fi
+}
+
+# Step 1: Check prerequisites
+echo "Verifying prerequisites for iSH compatibility..."
+check_internet
+setup_kali_chroot
+check_and_create_dir "$(dirname "$LOG_FILE")"
+check_permissions "$(dirname "$LOG_FILE")" "755"
+
+# Step 2: Configure Kali repositories
+echo "Configuring Kali repositories..."
+echo "deb http://http.kali.org/kali kali-rolling main contrib non-free" > /etc/apt/sources.list
+wget -q -O - https://archive.kali.org/archive-key.asc | apt-key add || { echo "Error: Failed to add Kali GPG key."; exit 1; }
+retry_cmd "apt update"
+
 # Step 3: Create required directories
 echo "Creating/checking directories: $INSTALL_DIR, $CONFIG_DIR, $WORDLIST_DIR, /tmp..."
 check_and_create_dir "$INSTALL_DIR"
@@ -74,14 +150,16 @@ check_and_create_dir "$WORDLIST_DIR"
 check_and_create_dir "/tmp"
 cd "$INSTALL_DIR" || { echo "Failed to change to $INSTALL_DIR"; exit 1; }
 
-# Step 4: Install base dependencies for iSH
-echo "Installing base dependencies for iSH..."
-retry_cmd "apt update"
+# Step 4: Install base dependencies
+echo "Installing base dependencies for Kali in iSH..."
+check_dependencies
 retry_cmd "apt install -y sudo wget grep sed python3 python3-pip"
 
 # Step 7: Download and prepare kali.sh startup script
 echo "Downloading kali.sh startup script..."
+check_internet
 retry_cmd "wget -q '$KALI_SCRIPT_URL' -O '$KALI_SCRIPT'"
+check_permissions "$KALI_SCRIPT" "755"
 chmod +x "$KALI_SCRIPT"
 
 # Step 8: Install Kali dependencies and tools
@@ -95,13 +173,29 @@ retry_cmd "sudo pip3 install beautifulsoup4 requests shodan pygeoip mechanize"
 # Install tools with automatic dependency resolution
 for tool in $TOOLS; do
     echo "Installing $tool and its dependencies..."
-    retry_cmd "sudo apt install -y --fix-missing $tool"
+    if [ "$tool" = "xsspy" ]; then
+        # xsspy may not be in Kali repos; install manually
+        if ! apt-cache show xsspy >/dev/null 2>&1; then
+            echo "xsspy not found in Kali repositories. Installing manually..."
+            retry_cmd "git clone https://github.com/menkra/xsspy.git /tmp/xsspy"
+            cd /tmp/xsspy
+            retry_cmd "sudo pip3 install -r requirements.txt"
+            cp xsspy.py /usr/local/bin/xsspy
+            chmod +x /usr/local/bin/xsspy
+            cd "$INSTALL_DIR"
+        else
+            retry_cmd "sudo apt install -y --fix-missing $tool"
+        fi
+    else
+        retry_cmd "sudo apt install -y --fix-missing $tool"
+    fi
 done
 # Fix any broken dependencies
 retry_cmd "sudo apt install -f -y"
 
 # Step 9: Append advanced menu system with ANONYMOUS logo, sub-menus, and wordlist menu
 echo "Adding advanced menu system with ANONYMOUS logo and wordlist menu to kali.sh..."
+check_permissions "$KALI_SCRIPT" "644"
 cat << 'EOF' >> "$KALI_SCRIPT"
 
 # Advanced CLI menu system for 20 CLI-compatible tools with ANONYMOUS logo
@@ -195,13 +289,7 @@ fetch_wordlists() {
     local github_url="$1"
     local temp_file="/tmp/wordlists.html"
     echo "Fetching wordlist files from $github_url..."
-    # Check internet connectivity
-    if ! ping -c 1 github.com >/dev/null 2>&1; then
-        echo "Error: No internet connection. Please connect to WiFi and try again."
-        echo "Press Enter to continue."
-        read
-        return 1
-    fi
+    check_internet
     # Download GitHub directory page
     wget -q "$github_url" -O "$temp_file" || { echo "Failed to fetch wordlist files."; rm -f "$temp_file"; return 1; }
     # Extract .txt filenames
@@ -239,12 +327,14 @@ download_wordlist() {
     local wordlist_url="${WORDLIST_RAW_BASE}/${wordlist}"
     local wordlist_path="${WORDLIST_DIR}/${wordlist}"
     echo "Downloading $wordlist to $wordlist_path..."
+    check_internet
     if ! wget -q "$wordlist_url" -O "$wordlist_path"; then
         echo "Error: Failed to download $wordlist."
         echo "Press Enter to continue."
         read
         return 1
     fi
+    check_permissions "$wordlist_path" "644"
     echo "$wordlist downloaded successfully to $wordlist_path."
     echo ""
     echo "=== Recommended Commands for $tool_name with $wordlist ==="
@@ -632,6 +722,7 @@ EOF
 
 # Step 10: Bootstrap Kali environment
 echo "Booting into Kali Linux environment..."
+check_permissions "$KALI_SCRIPT" "755"
 ./"$KALI_SCRIPT" || { echo "Failed to start Kali environment. Relaunch iSH and try './kali.sh'."; exit 1; }
 
 # Step 11: Install Kali tools
@@ -639,7 +730,16 @@ echo "Installing 20 CLI-compatible Kali Linux tools..."
 retry_cmd "sudo apt update"
 for tool in $TOOLS; do
     echo "Installing $tool..."
-    retry_cmd "sudo apt install -y --fix-missing $tool"
+    if [ "$tool" = "xsspy" ]; then
+        # xsspy may not be in Kali repos; check again
+        if ! apt-cache show xsspy >/dev/null 2>&1; then
+            echo "xsspy not found in Kali repositories. Already installed manually."
+        else
+            retry_cmd "sudo apt install -y --fix-missing $tool"
+        fi
+    else
+        retry_cmd "sudo apt install -y --fix-missing $tool"
+    fi
 done
 retry_cmd "sudo apt install -f -y"
 
@@ -659,4 +759,5 @@ echo "Type '?' in the menu for help, including usage examples and iSH notes."
 echo "For Aircrack-ng, Dirb, Hashcat, Hydra, and John, use 'w' in their sub-menus to select a wordlist from GitHub."
 echo "Each tool has a sub-menu with recommended commands and wordlist options where applicable."
 echo "Note: Some tools (e.g., Aircrack-ng, Kismet, Burp Suite) have limited functionality in iSH."
+echo "Logs are saved to $LOG_FILE for debugging."
 echo "For support, check https://github.com/SannyGrooves/KALI_IOS_ANON or contact mewl.team@outlook.com."
