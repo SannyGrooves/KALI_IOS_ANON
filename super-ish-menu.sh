@@ -1,22 +1,8 @@
-mkdir -p ~/iSH-tools
-cd iSH-tools
-apk update && apk upgrade && \
-apk add python3 py3-pip bash git nano curl wget whois bind-tools openssh nmap unzip zip whatweb amass 2>/dev/null && \
-pip3 install pystyle requests beautifulsoup4 lxml dirsearch && \
-git clone https://github.com/cons0le7/iSH-tools && cd iSH-tools && chmod +x iSH-tools tools/*.sh && cd ~ && \
-git clone https://github.com/lanmaster53/recon-ng && cd recon-ng && pip3 install -r REQUIREMENTS && cd ~ && \
-git clone https://github.com/laramies/theHarvester && cd theHarvester && pip3 install -r requirements.txt && cd ~ && \
-mkdir -p ~/wordlists && \
-wget -q -O ~/wordlists/rockyou.txt.gz https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt.gz && gunzip -f ~/wordlists/rockyou.txt.gz && \
-echo "Setup finished. Now launch menu with: ~/super-ish-menu.sh"
-apk update && apk upgrade && apk add python3 py3-pip bash git nano curl wget whois bind-tools openssh nmap unzip zip whatweb amass 2>/dev/null
-pip3 install pystyle requests beautifulsoup4 lxml dirsearch
 cd iSH-tools
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-# Paste this after installation finishes
+NC='\033[0m' # No Color.
 
 cd ~
 
