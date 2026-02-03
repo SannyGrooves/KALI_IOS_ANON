@@ -1,3 +1,9 @@
+
+apk update && apk add git bash
+git clone https://your-repo-or-save-manually super-ish-menu.sh
+chmod +x super-ish-menu.sh
+./super-ish-menu.sh
+
 Kali Linux Installation Guide for iSH on iOS
 This guide explains how to install Kali Linux in text mode on an iOS device using the iSH terminal emulator. It sets up a user-friendly menu with 20 powerful, command-line-compatible Kali Linux tools, featuring an "ANONYMOUS (Community Tools)" ASCII logo. The menu allows you to select tools by number (1–20), view help with ?, or exit with 0. This setup is optimized for iSH’s limitations, ensuring compatibility with iOS’s restricted environment.
 Prerequisites
