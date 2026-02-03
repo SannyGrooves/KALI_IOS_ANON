@@ -1,6 +1,6 @@
 
 apk update && apk add git bash
-git clone https://your-repo-or-save-manually super-ish-menu.sh
+wget https://github.com/SannyGrooves/KALI_IOS_ANON/releases/download/kali/super-ish-menu.sh super-ish-menu.sh
 chmod +x super-ish-menu.sh
 ./super-ish-menu.sh
 
